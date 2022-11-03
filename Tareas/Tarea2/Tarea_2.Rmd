@@ -1,0 +1,167 @@
+---
+title: "Tarea 2 M.E.I"
+author: "Mayela Fosado"
+date: "2/11/2022"
+output: 
+  rmdformats::downcute
+  
+---
+<style type="text/css">
+  body{
+    font-family: Century Gothic;
+  font-size: 11pt;
+  
+}
+</style>
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Ejercicio 8
+
+Elabora un programa en R que resuelva los modelos SIR, SEIR y SEIRS con demograf́ıa. Selecciona valores de los ṕarametros realistas para tus modelos.
+
+
+#### Cargar librería deSolve
+
+```{r}
+
+library(deSolve)
+
+```
+
+
+## Modelo SIR
+
+```{r}
+
+SIR <- function(t, state, parameters) {
+  
+  with(as.list(c(state, parameters)), {
+    
+    # Definir las ecuaciones
+    
+    dS <- - beta * S * I / (S + I + R) + nu - mu 
+    dI <- beta * S * I / (S + I + R) - gama * I - mu 
+    dR <- gama * I - mu 
+    list(c(dS, dI, dR))
+  })
+}
+
+
+parametros <- c(nu = 8, beta= 12, mu = 3, gama = 2)
+
+condiciones_iniciales <- c(S = 600, I = 150, R = 20)
+
+tiempo <- seq(0, 10, by = 0.0001)
+
+out <- ode(condiciones_iniciales, tiempo, SIR, parametros) 
+
+
+```
+
+### Gráfica
+
+
+```{r}
+
+matplot(out[ , 1], out[ , 2:4], type = "l", xlab = "Tiempo", ylab = "Población",
+        main = "SIR con demografía", lwd = 2)
+legend("topright", c("Susceptible", "Infectado","Recuperado"), 
+       col = 1:3,lty=1:3,cex=0.5)
+
+```
+
+
+
+## Modelo SEIR
+
+
+```{r}
+
+ SEIR <- function(t, state, parameters) {
+  with(as.list(c(state, parameters)), {
+    
+    # Definir las ecuaciones
+    
+    dS <- nu - S * beta * I - mu * S
+    dE <- S * beta * I - gama * I - mu * E
+    dI <- gama * I - delta * I - mu * I
+    dR <- delta * I - mu * R
+    
+    list(c(dS, dE, dI, dR))
+
+  })
+}
+
+parametros <- c(mu = 0.01, beta = 0.38, gama=0.095, nu=0.03, delta=0.085)
+
+condiciones_iniciales <- c(S = 750, I = 400, R = 70, E = 12)
+
+tiempo <- seq(0, 10, by = 0.0001)
+
+out <- ode(condiciones_iniciales, tiempo, SEIR, parametros) 
+
+
+```
+
+
+### Gráfica
+
+```{r}
+
+matplot(out[ , 1], out[ , 2:5], type = "l", xlab = "Tiempo", ylab = "Población",
+        main = "SEIR con demografía", lwd = 2)
+legend("topright", c("Susceptible", "Expuesto", "Infectado","Recuperado"), 
+       col = 1:4, lty = 1:4, cex = 0.5)
+```
+
+
+## Modelo SEIRS
+
+```{r}
+
+ SEIRS <- function(t, state, parameters) {
+  with(as.list(c(state, parameters)), {
+    
+    # Definir las ecuaciones
+    
+    dS <- nu - S * beta * I - mu * S + epsi * R
+    dE <- S * beta * I - gama * I - mu * E
+    dI <- gama * I - delta * I - mu * I
+    dR <- delta * I - mu * R - epsi * R
+    
+    list(c(dS, dE, dI, dR))
+
+  })
+}
+
+parametros <- c(mu = 0.01, beta = 0.98, gama = 0.095, nu = 0.03, delta = 0.085, epsi = 0.0051 )
+
+condiciones_iniciales <- c(S = 925, I = 50, R = 20, E = 40)
+
+tiempo <- seq(0, 10, by = 0.0001)
+
+out <- ode(condiciones_iniciales, tiempo, SEIRS, parametros) 
+
+
+
+```
+
+
+### Gráfica
+
+```{r}
+
+matplot(out[ , 1], out[ , 2:5], type = "l", xlab = "Tiempo", ylab = "Población",
+        main = "SEIRS con demografía", lwd = 2)
+legend("topright", c("Susceptible", "Expuesto", "Infectado","Recuperado"), 
+       col = 1:4, lty = 1:4,cex = 0.5)
+```
+
+
+
+
+
