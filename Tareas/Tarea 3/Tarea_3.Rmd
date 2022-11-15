@@ -1,0 +1,225 @@
+---
+title: "Tarea 3 M.E.I"
+author: "Mayela Fosado"
+date: "14/11/2022"
+output: 
+  rmdformats::downcute
+  
+---
+<style type="text/css">
+  body{
+    font-family: Century Gothic;
+  font-size: 11pt;
+  
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Cargar Paquetería:
+
+```{r}
+
+library(deSolve)
+
+```
+
+
+# Ejercicio 5
+
+#### Considera un modelo SIS con demografía en donde la enfermedad es ébola.
+
+
+**a) Dibuja un modelo por compartimentos y escribe las ecuaciones diferenciales. **
+
+### Modelo por compartimentos:
+
+![Modelo de Ébola](https://lh3.googleusercontent.com/pw/AL9nZEXc9Zk3an3-a7xDRD_gHctLalIa7dj1M1hjjgMhTRchEvIEZOnp31d_0p_5Ic4Hw162WP4WCTmQPFqfJRMETY6BRySiWXhMen4Pn8PibFoW6uDeDQLy6ne5bbBZabtVMcPw8e5WeyslFE1bGMTmyBUj=w983-h786-no?authuser=0)
+
+### Ecuaciones diferenciales:
+
+$$
+S(t) = - SI\beta + \mu + I\epsilon - S\mu
+$$
+
+$$
+I(t) = SI\beta - I\epsilon - I\mu
+$$
+
+**b) Busca parámetros realistas de esta enfermedad y resuélvelo al menos de forma nuḿerica  es decir con R).**
+
+```{r}
+SIS <- function(t, state, parameters) {
+  with(as.list(c(state, parameters)), { 
+
+    # Definir las ecuaciones:
+    
+    eS<- mu*(S + I) - beta*S*I/(S+I) + gamma*I - mu*I
+    eI<- beta*S*I/(S+I) - gamma*I - mu_E*I
+    
+    list(c(eS, eI))
+  })
+}
+
+ # Condiciones Iniciales
+
+parametros <- c(beta = 0.4, gamma = 0.05, mu = 0.0237, mu_E = 0.93)
+condiciones_iniciales <- c(S = 400, I = 120)
+tiempo <- seq(0, 100, by = 0.001)
+out <- ode(condiciones_iniciales, tiempo, SIS, parametros) 
+
+```
+
+### Gráfica del modelo
+
+```{r}
+
+matplot(out[ , 1], out[ , 2:3], type = "l", xlab = "Tiempo", ylab = "Población",
+        main = "Modelo SIS de Ébola", lwd = 2)
+legend("topright", c("Susceptible", "Infectado"), col = 1:2, lty=1:2, cex=0.5)
+
+```
+
+
+**c) Encuentra las soluciones para distintos valores de las codiciones iniciales.**
+
+```{r}
+
+SIS <- function(t, state, parameters) {
+  with(as.list(c(state, parameters)), { 
+
+    # Definir las ecuaciones:
+    
+    eS<- mu*(S + I) - beta*S*I/(S+I) + gamma*I - mu*I
+    eI<- beta*S*I/(S+I) - gamma*I - mu_E*I
+    
+    list(c(eS, eI))
+  })
+}
+
+ # Condiciones Iniciales
+
+parametros <- c(beta = 2, gamma = 0.75, mu = 0.0237, mu_E = 0.93)
+condiciones_iniciales <- c(S = 400, I = 120)
+tiempo <- seq(0, 100, by = 0.001)
+out <- ode(condiciones_iniciales, tiempo, SIS, parametros) 
+
+```
+
+### Gráfica del modelo
+
+```{r}
+
+matplot(out[ , 1], out[ , 2:3], type = "l", xlab = "Tiempo", ylab = "Población",
+        main = "Modelo SIS de Ébola", lwd = 2)
+legend("topright", c("Susceptible", "Infectado"), col = 1:2, lty=1:2, cex=0.5)
+
+```
+
+
+# Ejercicio 6
+
+#### Considera un modelo de una enfermedad en la cual una fracción de los individuos se recuperan y son inmunes y otra fracción donde permanencen en estado crónico.
+
+**a) Dibuja un modelo por compartimentos y escribe las ecuaciones diferenciales.**
+
+
+### Modelo por compartimentos:
+
+![Modelo de Poliomelitis](https://lh3.googleusercontent.com/pw/AL9nZEVEs7Mie4I1cSZ3mCyiuhoNpPthxWYq7SYxYEn3lpnIwiHJtvSebEPQgmoupst9fj__2P2NZyd6qT3gz7pc5duGp7pPSZjaMShAOcx4r6OikYK9bHs-K3Jb6ds5dk8Va-JEVQe_1UGJgrOx-uo29Zaz=w983-h786-no?authuser=0)
+
+### Ecuaciones diferenciales:
+
+$$
+S(t) = - SI\beta - SC\beta + \mu - S\mu 
+$$
+$$
+I(t) = SI\beta + SC\beta - I\gamma
+$$
+$$
+C(t) = I(1-c)\gamma - C\mu
+$$
+$$
+R(t) = cI\gamma - R\mu
+$$
+**b) Busca parámetros realistas de una enfermedad con esos dos estadios y resuélvelo al menos de forma numérica (es decir con R).**
+
+```{r}
+
+SIR <- function(t, state, parameters) {
+  with(as.list(c(state, parameters)), {
+    
+    # Definir ecuaciones
+    
+    pS <- mu*(S+I+C+R) - beta*S*C/(S+I+C+R) - beta*S*I/(S+I+C+R) - mu*S
+    pI <- beta*S*C/(S+I+C+R) + beta*S*I/(S+I+C+R) - gamma*I
+    pC <- gamma*I*(1-c) - mu*C
+    pR <- gamma*c*I - mu*R
+    list(c(pS, pI, pC, pR))
+  })
+}
+
+
+# Condiciones Iniciales
+
+parametros <- c(mu = 0.0251, beta = 0.6320, gamma = 3, c = 0.7)  
+condiciones_iniciales <- c(S = 3000, I = 3, C = 5, R = 10)
+tiempo <- seq(0, 200, by = 0.0001)
+out <- ode(condiciones_iniciales, tiempo, SIR, parametros) 
+
+
+```
+
+### Gráfica del modelo
+
+```{r}
+
+matplot(out[ , 1], out[ , 2:4], type = "l", xlab = "Tiempo", ylab = "Población",
+        main = "Modelo SICR de Poliomielitis", lwd = 2)
+legend("topright", c("Susceptibles", "Infectados", "Crónicos", "Recuperados"), col = 1:4, lty = 1:4, cex = 0.5)
+
+```
+
+**c) Encuentra las soluciones para distintos valores de las condiciones iniciales.**
+
+```{r}
+
+
+SIR <- function(t, state, parameters) {
+  with(as.list(c(state, parameters)), {
+    
+    # Definir ecuaciones
+    
+    pS <- mu*(S+I+C+R) - beta*S*C/(S+I+C+R) - beta*S*I/(S+I+C+R) - mu*S
+    pI <- beta*S*C/(S+I+C+R) + beta*S*I/(S+I+C+R) - gamma*I
+    pC <- gamma*I*(1-c) - mu*C
+    pR <- gamma*c*I - mu*R
+    list(c(pS, pI, pC, pR))
+  })
+}
+
+
+# Condiciones Iniciales
+
+parametros <- c(mu = 0.0251, beta = 5.6320, gamma = 3, c = 0.07)  
+condiciones_iniciales <- c(S = 3000, I = 6, C = 7, R = 10)
+tiempo <- seq(0, 200, by = 0.0001)
+out <- ode(condiciones_iniciales, tiempo, SIR, parametros) 
+
+```
+
+
+
+### Gráfica del modelo
+
+```{r}
+
+matplot(out[ , 1], out[ , 2:4], type = "l", xlab = "Tiempo", ylab = "Población",
+        main = "Modelo SICR de Poliomielitis", lwd = 2)
+legend("topright", c("Susceptibles", "Infectados", "Crónicos", "Recuperados"), col = 1:4, lty = 1:4, cex = 0.5)
+
+```
+
