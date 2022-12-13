@@ -1,0 +1,116 @@
+---
+title: "Filtrado con datos COVID-19 México"
+author: "Mayela Fosado"
+date: "09/12/2022"
+output: 
+  rmdformats::downcute
+  
+---
+<style type="text/css">
+  body{
+    font-family: Century Gothic;
+  font-size: 11pt;
+  
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+[Datos utilizados de la Secretaría de Salud](https://datosabiertos.salud.gob.mx/gobmx/salud/datos_abiertos/datos_abiertos_covid19.zip)
+
+* Leer los datos con RDS para que no colapse la laptop.
+
+* Cargar librería.
+
+```{r}
+
+# Base de datos
+covid_mex <- readRDS(file = "my_bd.rds")
+
+# Libreria
+library(dplyr)
+
+```
+
+Base de datos ya cargada
+
+```{r}
+
+covid_mex
+
+```
+
+## Filtrado con resultados de laboratorio negativo para SARS-CoV-2, con asma, inmunosupresión de Querétaro
+
+```{r}
+
+covid_mex %>% 
+  filter(RESULTADO_LAB == "2") %>% 
+  filter(ASMA == "1") %>% 
+  filter(INMUSUPR == "1") %>% 
+  filter(ENTIDAD_NAC == "22")
+
+```
+El filtrado que yo hice fue para personas con dos de los padecimientos que eran considerados como factor de riesgo para la enfermedad COVID-19, con personas solo de la entidad de Querétaro. Solo se obtuvieron 7 personas que cumplían con el filtrado, además de que la mayoría tenía más padecimientos como diabetes, enfermedades cardiovasculares.
+
+
+
+## Filtrado con resultados de laboratorio positivo para SARS-CoV-2, con asma, inmunosupresión de Querétaro
+
+```{r}
+
+covid_mex %>% 
+  filter(RESULTADO_LAB == "1") %>% 
+  filter(ASMA == "1") %>% 
+  filter(INMUSUPR == "1") %>% 
+  filter(ENTIDAD_NAC == "22")
+
+```
+
+Con un resultado positivo, a diferencia del filtrado pasado, solo hay 4 personas. De los cuales filtraremos si fueron hospitalizados e intubados.
+
+
+## Filtrado de personas con asma, inmunosupresión, resultado positivo de Querétaro y hospitalizados
+
+```{r}
+
+covid_mex %>% 
+  filter(RESULTADO_LAB == "1") %>% 
+  filter(ASMA == "1") %>% 
+  filter(INMUSUPR == "1") %>% 
+  filter(ENTIDAD_NAC == "22") %>% 
+  filter(TIPO_PACIENTE == "1")
+
+```
+Solo arroja dos personas el filtrado, de los cuales, solo hubo 2 y ninguna de estas personas fue intubada
+
+Probaré este último filtrado pero con personas de todo el país
+
+
+```{r}
+covid_mex %>% 
+  filter(RESULTADO_LAB == "1") %>% 
+  filter(ASMA == "1") %>% 
+  filter(INMUSUPR == "1") %>% 
+  filter(TIPO_PACIENTE == "1")
+
+```
+Resultado: 91 personas
+
+
+## Filtrado de personas con asma, inmunosupresión, resultado positivo de todo México, hospitalizados e intubados
+
+```{r}
+
+covid_mex %>% 
+  filter(RESULTADO_LAB == "1") %>% 
+  filter(ASMA == "1") %>% 
+  filter(INMUSUPR == "1") %>% 
+  filter(TIPO_PACIENTE == "1") %>% 
+  filter(INTUBADO == "1")
+
+```
+A pesar de que fueron 91 personas hospitalizadas, ninguno fue registrado como intubado
+
