@@ -216,4 +216,4 @@ legend("topright", c("Suceptibles", "Infectados","Recuperados"), col = 1:4, lty 
 }
 ```
 
-En las gráficas se observan los valores para $R_0$ de 1.75, 2 y 2.5, y que cuando existe un $R_0$ mayor, el pico de infectados y recuperados aumenta, así como los susceptibles disminuyen durante el pico de la infección, a diferencia de cuando existe un $R_0$, en donde los susceptibles disminuyen después del pico de infección.
+En las gráficas se observan los valores para $R_0$ de 1.6 a 4, incluyendo los de 1.75, 2 y 2.5, y que cuando existe un $R_0$ mayor, el pico de infectados y recuperados aumenta, así como los susceptibles disminuyen durante el pico de la infección, a diferencia de cuando existe un $R_0$, en donde los susceptibles disminuyen después del pico de infección.
