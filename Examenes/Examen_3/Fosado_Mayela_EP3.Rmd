@@ -1,0 +1,219 @@
+---
+title: "Examen 3"
+author: "Mayela Fosado"
+date: "2023-01-12"
+output: 
+  rmdformats::downcute
+---
+
+```{=html}
+<style type="text/css">
+  body{
+    font-family: Century Gothic;
+  font-size: 11pt;
+
+}
+</style>
+
+<div style="text-align: justify">
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+# Segunda Parte
+
+Librería que se va a utilizar.
+
+```{r}
+library(deSolve)
+```
+
+
+### Considera un modelo SIR sin demografía en donde la población se conserva.
+
+
+## a)  Escribe y resuelve las ecuaciones diferenciales para valores de R0 = β/γ = 1.75, 2, 2.5
+
+
+
+## b)  Considera la condición inicial (S = 10^6, I = 1, R = 0)
+
+#### Ecuaciones: 
+
+$$\dot S=-\beta SI$$
+$$\dot I=\beta SI - \gamma I$$
+$$\dot R=\gamma I$$
+$$ R_0 = \beta / \gamma$$
+
+
+#### Resolución de las ecuaciones:
+
+
+No me salió el cálculo de la tasa de infección, entonces hice un ciclo for para ver qué valores me arrojaban los tres valores de $R_0$ (1.75, 2, 2.5).
+
+```{r}
+
+beta <- 15
+gama <- 10
+
+for (i in 5:35) {
+  gama <- gama - .1
+  beta <- beta + .1
+  R0 <- beta/gama
+  print(c(gama, beta, R0))
+}
+
+```
+
+
+$R_0 1 = 1.75$
+
+```{r}
+
+### Funcion SIR:
+
+SIR <- function(t, state, parameters) {
+  with(as.list(c(state, parameters)), { 
+  
+    dS <- -beta*S*I/(S+I+R) 
+    dI <- beta*S*I/(S+I+R) -gama*I
+    dR <- gama*I 
+  
+    list(c(dS, dI, dR))
+  })
+}
+
+###  Condiciones iniciales:
+
+pars_1 <- c(beta = 15.900000, gama = 9.100000)  
+condiciones_iniciales <- c(S = 10^6, I = 1, R = 0)
+tiempo_1 <- seq(0, 10, by = 0.0001)
+out_1 <- ode(condiciones_iniciales, tiempo_1, SIR, pars_1)
+
+
+### Grafica:
+
+matplot(out_1[ , 1], out_1[ , 2:4], type = "l", xlab = "tiempo", ylab = "Población", main = "Influenza H1N1 en México", lwd = 2)
+legend("topright", c("Suceptibles", "Infectados","Recuperados"), col = 1:4, lty = 1:4, cex = 0.5)
+
+```
+
+
+
+$R_0 2 = 2$
+
+```{r}
+
+### Funcion SIR:
+
+SIR <- function(t, state, parameters) {
+  with(as.list(c(state, parameters)), { 
+  
+    dS <- -beta*S*I/(S+I+R) 
+    dI <- beta*S*I/(S+I+R) -gama*I
+    dR <- gama*I 
+  
+    list(c(dS, dI, dR))
+  })
+}
+
+###  Condiciones iniciales:
+
+pars_2 <- c(beta = 16.700000, gama = 8.300000)  
+condiciones_iniciales <- c(S = 10^6, I = 1, R = 0)
+tiempo_2 <- seq(0, 10, by = 0.0001)
+out_2 <- ode(condiciones_iniciales, tiempo_2, SIR, pars_2)
+
+
+### Grafica:
+
+matplot(out_2[ , 1], out_2[ , 2:4], type = "l", xlab = "tiempo", ylab = "Población", main = "Influenza H1N1 en México", lwd = 2)
+legend("topright", c("Suceptibles", "Infectados","Recuperados"), col = 1:4, lty = 1:4, cex = 0.5)
+
+```
+
+
+$R_0 3 = 2.5$
+
+```{r}
+
+### Funcion SIR:
+
+SIR <- function(t, state, parameters) {
+  with(as.list(c(state, parameters)), { 
+  
+    dS <- -beta*S*I/(S+I+R) 
+    dI <- beta*S*I/(S+I+R) -gama*I
+    dR <- gama*I 
+  
+    list(c(dS, dI, dR))
+  })
+}
+
+###  Condiciones iniciales:
+
+pars_3 <- c(beta = 17.900000, gama = 7.100000)  
+condiciones_iniciales <- c(S = 10^6, I = 1, R = 0)
+tiempo_3 <- seq(0, 10, by = 0.0001)
+out_3 <- ode(condiciones_iniciales, tiempo_3, SIR, pars_3)
+
+
+### Grafica:
+
+matplot(out_3[ , 1], out_3[ , 2:4], type = "l", xlab = "tiempo", ylab = "Población", main = "Influenza H1N1 en México", lwd = 2)
+legend("topright", c("Suceptibles", "Infectados","Recuperados"), col = 1:4, lty = 1:4, cex = 0.5)
+
+
+
+```
+
+
+## c) Considera los datos de la pandemia de H1N1 en México. Escoge valores de beta y gamma que den los valores de R0 de arriba pero que ajusten mejor los datos. Sugerencia utiliza un ciclo for para variar los valores.
+
+```{r}
+
+valores_beta <- 20:40 
+
+valores_gama <- 5:25
+
+
+for (i in 1:length(valores_gama)) {
+  
+  beta <- valores_beta[i]
+  gama <- valores_gama[i]
+  
+
+  SIR <- function(t, state, parameters) {
+  with(as.list(c(state, parameters)), { 
+  
+    dS <- -beta*S*I/(S+I+R) 
+    dI <- beta*S*I/(S+I+R) -gama*I
+    dR <- gama*I 
+  
+    list(c(dS, dI, dR))
+  })
+}
+
+###  Condiciones iniciales:
+
+pars <- c(beta = beta, gama = gama)  
+condiciones_iniciales <- c(S = 10^6, I = 1, R = 0)
+tiempo <- seq(0, 10, by = 0.0001)
+out <- ode(condiciones_iniciales, tiempo, SIR, pars)
+
+
+### Grafica:
+
+R0 <- beta/gama
+
+matplot(out[ , 1], out[ , 2:4], type = "l", xlab = "tiempo", ylab = "Población", main = paste("Influenza H1N1 en México con R0 =", R0), lwd = 2)
+legend("topright", c("Suceptibles", "Infectados","Recuperados"), col = 1:4, lty = 1:4, cex = 0.5)
+  
+
+}
+```
+
+En las gráficas se observan los valores para $R_0$ de 1.75, 2 y 2.5, y que cuando existe un $R_0$ mayor, el pico de infectados y recuperados aumenta, así como los susceptibles disminuyen durante el pico de la infección, a diferencia de cuando existe un $R_0$, en donde los susceptibles disminuyen después del pico de infección.
