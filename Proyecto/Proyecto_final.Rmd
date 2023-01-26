@@ -1,0 +1,590 @@
+---
+title: "Redes Infecciosas"
+asignature: "Proyecto Final Modelaje"
+date: "2023-01-24"
+output: 
+  rmdformats::downcute
+  
+---
+<style type="text/css">
+  body{
+    font-family: Century Gothic;
+  font-size: 11pt;
+  
+}
+</style>
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Mayela Fosado¹
+##### Max Orozco, Fer Rendón, Ximena Plascencia
+
+
+
+# Introducción
+
+Los modelos por compartimentos son una herramienta útil para modelar la transmisión de una enfermedad. Con la paquetería **desolve** en R, se pueden representar los modelos, añadiendo los parámetros de las enfermedades, de esta manera se puede obtener un plot que en el eje $x$ muestre el tiempo y en el eje $y$ la cantidad de personas que hay por estado (susceptible, infectado, recuperado, etc.) Sin embargo, a través del plot no se puede visualizar cómo es el contacto entre las personas y las conexiones que pueden existir entre ellas, es decir, que habría más personas con un mayor a riesgo a enfermedad si están en contacto con alguien infectado. 
+
+Este proyecto tiene el propósito de poder desarrollar una herramienta que permita visualizar ese contacto entre las personas, por medio de una función de redes. Se utilizaron dos modelos de compartimentos para realizarlo, el modelo SIR y el modelo SEIR. Ambos modelos fueron modelados por los dos métodos en este proyecto, y así mismo se realizaró una comparación entre ellos.
+
+
+Librerías para utilizar:
+
+```{r}
+library(igraph)
+library(ggplot2)
+library(animation)
+library(ranger)
+library(viridis)
+library(deSolve)
+```
+
+# Ecuaciones
+
+**S**: Susceptibles
+
+**E**: Expuestos / Exposed
+
+**I**: Infectados / Infected
+
+**R**: Recuperados / Recovery
+
+## Modelo SIR
+
+$$\dot S=-\beta SI$$
+$$\dot I=\beta SI - \gamma I$$
+$$\dot R=\gamma I$$
+
+
+## Modelo SEIR
+
+$$\dot S=-\beta SI$$
+$$\dot E=\beta SI - \delta E$$
+$$\dot I=\delta E-\gamma I$$
+$$\dot R=\gamma I$$
+
+
+# Modelo por compartimentos
+
+# Modelo SIR
+
+![](https://lh3.googleusercontent.com/pw/AMWts8CXnfpuux6s1-7xyV2Trt7bcQuZuvUQk1YOvxjQJmMwHs71iGQIv356zD665WnniYCNi3qfItQbiWxBmG9Bt2WYtNo8BUaSutl7kLRAnv2EbZC9ZLkk6wZ3k-PzfDJyZvEBElwi6f3af35GJcX0pu4S=w735-h588-no?authuser=0)
+
+# Modelo SEIR
+
+![](https://lh3.googleusercontent.com/pw/AMWts8ATV-XHkAuSTr87I29lHLtQ1Og5fAflWFP3OF-0wpYQQboU56_bTlht71O2vAsdQq78Gve9XYSW-rrvj_y9tiI1vVaGypbLqr8FxRaqfMYERrmVyo069KhPmfMNgnasKV5bgCXxROZtSb-Zl-Iw2k1A=w735-h588-no?authuser=0)
+
+
+
+
+# Función de redes
+
+
+Crear una red de origen
+
+```{r}
+Adj <- barabasi.game(500, directed = FALSE)
+```
+
+Función **Infectious.Network** para establecer los parámetros de la transmisión de una enfermedad, el nodo en el que comienza el infectado, los días que dura una persona en periodo infeccioso, etc.
+
+**Partes de la función**
+**x**: Objeto listo para plotear de igraph (la red)
+
+**StateConfig:** c(S, I, R) o  c(S, E, I, R)
+
+**Colors:** c(Color1, Color2, Color3) o c(Color1, Color2, Color3, Color4)
+
+**StateDays:** ¿Cuántos días permanece una persona en ese estado? c(0, #, #, #)
+
+**StartNode:** ¿Quién(es) va(n) a ser el primer infeccioso?
+
+**R0:** Promedio de personas que van a ser contagiadas por una persona
+
+**Days:** ¿Cuántos días quieres que itere? ###
+
+length(StateConfig) == length(Colors) == length(StateDays)
+
+  
+
+```{r}
+Infectious.Network <- function(x, StateConfig, StateDays, StartNode, R0, Colors, Days) {  
+  
+  
+  # Hacer una base de datos que contenga el conteo de los estados por dia
+  if (length(StateConfig) == 3){
+    Summary <- data.frame(0, 0, 0, 0)
+    colnames(Summary) <- c("S", "I", "R", "Day")
+  } else if (length(StateConfig) == 4) {
+    Summary <- data.frame(0, 0, 0, 0, 0 )
+    colnames(Summary) <- c("S", "E", "I", "R", "Day")
+  }
+  
+  
+  
+  # Para los nombres de los plots
+  if (length(StateConfig) == 3) {PlotName <- "SIR"
+  Lol <- c("Susceptible", "Infected", "Recovered")
+  } else if (length(StateConfig) == 4) {PlotName <- "SEIR"
+  Lol <- c("Susceptible", "Exposed", "Infected", "Recovered")}
+  d <- 1
+  
+  
+  
+  # Asignar a objetos la cantidad de dias que pasa una persona en un estado determinado
+  if(length(StateDays) == 3) {S<-StateDays[1]
+  I<-StateDays[2]
+  R<-StateDays[3]} else if (length(StateDays) == 4){
+    S<-StateDays[1]
+    E<-StateDays[2]
+    I<-StateDays[3]
+    R<-StateDays[4]
+  }
+  
+  
+  
+  # Para que quede fija la red
+  LO <- layout_nicely(Adj)
+  angle <- 7*100 * 20
+  RotMat <- matrix(c(cos(angle),sin(angle),-sin(angle), cos(angle)), ncol=2)
+  LO2 <- LO %*% RotMat
+  
+  
+  
+  
+  Net <- x # Asignar a otro objeto
+  AdjNet <- as_adj_list(Net) # Para obtener adyacencias
+  
+  
+  # Añadir atributos a los vertices
+  V(Net)$State <- c(rep("A", length(Net)))
+  V(Net)$Days <- c(rep(0, length(Net)))  
+  
+  
+  
+  
+  # Asociar colores a los estados en los plots
+  Colors <- Colors
+  my_color <- Colors[as.numeric(as.factor(V(Net)$State))]
+  
+  
+  
+  
+  
+  # Asignar estados a un orden alfabetico (porque igraph asigna los colores en orden alfabetico)
+  for (i in 1:length(StateConfig)) {
+    StateConfig[i] <- LETTERS[i]
+  }
+  
+  
+  
+  ####################
+  # HAZ UN PLOT AQUI #
+  ####################
+  my_color <- Colors[as.numeric(as.factor(V(Net)$State))]
+  
+  plot(Net, layout = LO2, vertex.color = my_color, vertex.size = degree(Adj, V(Adj), "in")*2, 
+       vertex.label = "", edge.arrow.size = 0.2, edge.size = 19, 
+       vertex.frame.color="white", edge.color = "#E5E3C9")
+  
+  legend(x=-1.5, y=-1.1, paste(Lol), pch=21, 
+         col="lightgray", pt.bg = Colors, pt.cex=2, cex=1.5, bty="n", ncol=1, title = paste(PlotName))
+  
+  #######################################
+  # Actualizar la base de datos por dia #
+  #######################################
+  if (length(StateConfig) == 3){
+    new_row <- c(as.numeric(table(V(Net)$State == "A")["TRUE"]),
+                 as.numeric(table(V(Net)$State == "B")["TRUE"]),
+                 as.numeric(table(V(Net)$State == "C")["TRUE"]),
+                 0)
+    
+    Summary <- rbind(Summary, new_row)
+  } else if (length(StateConfig) == 4) {
+    new_row <- c(as.numeric(table(V(Net)$State == "A")["TRUE"]),
+                 as.numeric(table(V(Net)$State == "B")["TRUE"]),
+                 as.numeric(table(V(Net)$State == "C")["TRUE"]),
+                 as.numeric(table(V(Net)$State == "D")["TRUE"]),
+                 0)
+    
+    Summary <- rbind(Summary, new_row)
+  }
+  
+  
+  
+  # Asignar el primer infectado a la red
+  V(Net)$Days[StartNode] <- 1
+  if(length(StateConfig) == 3) {V(Net)$State[StartNode] <- "B"} else if (length(StateConfig) == 4) {V(Net)$State[StartNode] <- "C"}
+  
+  
+  
+  
+  ####################
+  # HAZ UN PLOT AQUI #
+  ####################
+  my_color <- Colors[as.numeric(as.factor(V(Net)$State))]
+  
+  plot(Net, layout = LO2, vertex.color = my_color, vertex.size = degree(Adj, V(Adj), "in")*2, 
+       vertex.label = "", edge.arrow.size = 0.2, edge.size = 19, 
+       vertex.frame.color="white", edge.color = "#E5E3C9")
+  
+  legend(x=-1.5, y=-1.1, paste(Lol), pch=21, 
+         col="lightgray", pt.bg = Colors, pt.cex=2, cex=1.5, bty="n", ncol=1, title = paste(PlotName, "Day", 0))
+  
+  #######################################
+  # Actualizar la base de datos por dia #
+  #######################################
+  if (length(StateConfig) == 3){
+    new_row <- c(as.numeric(table(V(Net)$State == "A")["TRUE"]),
+                 as.numeric(table(V(Net)$State == "B")["TRUE"]),
+                 as.numeric(table(V(Net)$State == "C")["TRUE"]),
+                 0)
+    
+    Summary <- rbind(Summary, new_row)
+  } else if (length(StateConfig) == 4) {
+    new_row <- c(as.numeric(table(V(Net)$State == "A")["TRUE"]),
+                 as.numeric(table(V(Net)$State == "B")["TRUE"]),
+                 as.numeric(table(V(Net)$State == "C")["TRUE"]),
+                 as.numeric(table(V(Net)$State == "D")["TRUE"]),
+                 0)
+    
+    Summary <- rbind(Summary, new_row)
+  }
+  
+  
+  
+  for (i in 1:Days) {
+    
+    
+    # Asignar los dias de los estados a nuevos objetos
+    if(length(StateConfig) == 3) {S <- StateDays[1]
+    I <- StateDays[2]
+    R <- StateDays[3]
+    } else if (length(StateConfig) == 4) {
+      
+      S <- StateDays[1]
+      E <- StateDays[2]
+      I <- StateDays[3]
+      R <- StateDays[4]}
+    
+    
+    
+    
+    
+    # Transmision de la enfermedad
+    if (length(StateConfig) == 3){ # primer if
+      
+      for (i in 1:length(V(Net)$State)) {
+        if(V(Net)$State[i] == "B") {new_infected <- sample(as.numeric(AdjNet[[i]]), R0, replace = T)
+        for (i in 1:length(new_infected)) {
+          if (V(Net)$Days[new_infected[i]] == 0) {V(Net)$Days[new_infected[i]] <- 1}
+        }
+        }
+      } 
+      
+      
+    } else if (length(StateConfig) == 4) { # Segundo if 
+      
+      for (i in 1:length(V(Net)$State)) {
+        if(V(Net)$State[i] == "C") {new_infected <- sample(as.numeric(AdjNet[[i]]), R0, replace = T)
+        for (i in 1:length(new_infected)) {
+          if (V(Net)$Days[new_infected[i]] == 0) {V(Net)$Days[new_infected[i]] <- 1}
+        }
+        }
+      } 
+      
+      
+    } # Aqui termina el segundo if
+    
+    
+    
+    
+    # Cambiar el estado basado en los dias que paso en ese mismo
+    for (i in 1:length(V(Net)$Days)) {
+      if(length(StateConfig) == 3) { # Si es un modelo SIR
+        if(V(Net)$Days[i] == S+1) {V(Net)$State[i] <- "B"} else if (V(Net)$Days[i] == I+1) {V(Net)$State[i] <- "C"}
+        
+        
+      } else if(length(StateConfig) == 4) { # Si es un modelo SEIR
+        if(V(Net)$Days[i] == S+1) {V(Net)$State[i] <- "B"} else if (V(Net)$Days[i] == E+1) {V(Net)$State[i] <- "C"} else if (V(Net)$Days[i] == I+1) {V(Net)$State[i] <- "D"}
+      }
+    }
+  
+    
+    
+    # Añadir un dia a todos aquellos que iniciaron el proceso infeccioso
+    for (i in 1:length(V(Net)$Days)) {
+      if(V(Net)$Days[i] > 0) {V(Net)$Days[i] <- V(Net)$Days[i] + 1}
+    }
+    
+    
+    
+    ####################
+    # HAZ UN PLOT AQUI #
+    ####################
+    my_color <- Colors[as.numeric(as.factor(V(Net)$State))]
+    
+    plot(Net, layout = LO2, vertex.color = my_color, vertex.size = degree(Adj, V(Adj), "in")*2, 
+         vertex.label = "", edge.arrow.size = 0.2, edge.size = 19, 
+         vertex.frame.color="white", edge.color = "#E5E3C9")
+    
+    legend(x=-1.5, y=-1.1, paste(Lol), pch=21, 
+           col="lightgray", pt.bg = Colors, pt.cex=2, cex=1.5, bty="n", ncol=1, title = paste(PlotName, "Day", d))
+  
+  
+  #######################################
+  # Actualizar la base de datos por dia #
+  #######################################
+  
+  if (length(StateConfig) == 3){
+    new_row <- c(as.numeric(table(V(Net)$State == "A")["TRUE"]),
+                 as.numeric(table(V(Net)$State == "B")["TRUE"]),
+                 as.numeric(table(V(Net)$State == "C")["TRUE"]),
+                 d)
+    
+    Summary <- rbind(Summary, new_row)
+  } else if (length(StateConfig) == 4) {
+    new_row <- c(as.numeric(table(V(Net)$State == "A")["TRUE"]),
+                 as.numeric(table(V(Net)$State == "B")["TRUE"]),
+                 as.numeric(table(V(Net)$State == "C")["TRUE"]),
+                 as.numeric(table(V(Net)$State == "D")["TRUE"]),
+                 d)
+    
+    Summary <- rbind(Summary, new_row)
+  }
+  
+  d <- d+1 
+  
+}
+return(Summary)
+}
+```
+
+
+## Modelo SIR
+
+```{r}
+
+#### SIR
+
+# Plots de uno por uno
+a <- Infectious.Network(Adj, c("S", "I", "R"), c(0, 5, 0), 24, 2, c("#9EA1D4", "#A8D1D1", "#F1F7B5"), 40)
+
+
+```
+
+## Gift de SIR
+
+```{r}
+
+# Para hacer un gift
+saveGIF(Infectious.Network(Adj, c("S", "I", "R"), c(0, 5, 0), 24, 2, c("#9EA1D4", "#A8D1D1", "#F1F7B5"), 40) ,
+        # Nombre del gif
+        movie.name = "SIR.gif",
+        # Dimensiones
+        ani.width  = 1600,
+        ani.height = 900,
+        # Tiempo de duración de cada frame (segundos)
+        interval = 0.2
+)
+```
+
+Insertar el gift previamente creado
+
+```{r}
+if (knitr:::is_latex_output()) {
+  knitr::asis_output('\\url{https://lh3.googleusercontent.com/pw/AMWts8BbENUtIQFG2YbCKmGyYnrr7siJtiG7QnQYLB5ZSb6PWh0BVIZBOIt4COMqhNSC-faweC1riv3XxS9cxa_y50md7aihQ7PVwM1LQwbQ0PT5nGnKET0TzC8w4huz6I-zRZH0vtTU9-4VXPBGfHEcvpGH=s350-no?authuser=0}')
+} else {
+  knitr::include_graphics("SIR.gif")
+}
+```
+
+
+## Modelo SEIR
+
+```{r}
+
+# Plots de uno por uno
+b <- Infectious.Network(Adj, c("S", "E", "I", "R"), c(0, 2, 5, 0), 24, 2, c("#9EA1D4", "#FD8A8A", "#A8D1D1", "#F1F7B5"), 60)
+
+```
+
+## Gift de SEIR
+
+```{r}
+# Para hacer un gift
+saveGIF(Infectious.Network(Adj, c("S", "E", "I", "R"), c(0, 2, 5, 0), 24, 2, c("#9EA1D4", "#FD8A8A", "#A8D1D1", "#F1F7B5"), 60),
+        # Nombre del gift
+        movie.name = "SEIR.gif",
+        # Dimensiones
+        ani.width  = 1600,
+        ani.height = 900,
+        # Tiempo de duración de cada imagen (segundos)
+        interval = 0.2
+)
+
+```
+
+Insertar el gift previamente creado
+
+```{r}
+if (knitr:::is_latex_output()) {
+  knitr::asis_output('\\url{https://lh3.googleusercontent.com/pw/AMWts8BbENUtIQFG2YbCKmGyYnrr7siJtiG7QnQYLB5ZSb6PWh0BVIZBOIt4COMqhNSC-faweC1riv3XxS9cxa_y50md7aihQ7PVwM1LQwbQ0PT5nGnKET0TzC8w4huz6I-zRZH0vtTU9-4VXPBGfHEcvpGH=s350-no?authuser=0}')
+} else {
+  knitr::include_graphics("SEIR.gif")
+}
+```
+
+
+# Modelos por compartimentos
+
+## Modelo SIR
+
+```{r}
+
+SIR <- function(t, state, parameters) {
+  with(as.list(c(state, parameters)), { 
+    
+    dS <- -beta*S*I/(S+I+R) 
+    dI <- beta*S*I/(S+I+R) -gama*I
+    dR <- gama*I 
+    
+    list(c(dS, dI, dR))
+  })
+}
+
+###  Condiciones iniciales:
+
+pars <- c(beta = 6, gama = 3)  
+condiciones_iniciales <- c(S = 499, I = 1, R = 0)
+tiempo <- seq(0, 10, by = 0.0001)
+out1 <- ode(condiciones_iniciales, tiempo, SIR, pars)
+
+
+### Grafica:
+
+matplot(out1[ , 1], out1[ , 2:4], type = "l", xlab = "Time", ylab = "Population", main = "SIR", lwd = 3, col = c("#9EA1D4", "#A8D1D1", "#F1F7B5"))
+legend("topright", c("Suceptible", "Infectado / Infected","Recuperado / Recovered"), col = c("#9EA1D4", "#A8D1D1", "#F1F7B5"), lty = 1:4, cex = 0.5)
+
+
+```
+
+
+## Modelo SEIR
+
+```{r}
+
+ SEIR <- function (t, state, parameters) {  
+  with (as.list (c (state, parameters)), { 
+    dS <- - beta * S * I / (S + E + I + R)  
+    dE <- beta * S * I / (S + E + I + R) - delta * E   
+    dI <- delta * E - gama * I  
+    dR <- gama * I   
+    list (c (dS, dE, dI, dR))  
+  })
+} 
+
+pars <- c (beta = 10, delta = 4, gama = 1) 
+condiciones_iniciales <- c (S = 497, E = 2, I = 1, R = 0)  
+tiempo <- seq (0, 10, by = 0.001)  
+out2 <- ode (condiciones_iniciales, tiempo, SEIR, pars) 
+
+matplot (out2[ , 1], out2[ , 2 : 5], type = "l", xlab = "Time", ylab = "Population", main = "SEIR", lwd = 3, col = c("#9EA1D4", "#FD8A8A", "#A8D1D1", "#F1F7B5")) 
+legend ("topright", c ("Susceptible", "Expuesto / Exposed", "Infectado / Infected", "Recuperado / Recovered"), col = c("#9EA1D4", "#FD8A8A", "#A8D1D1", "#F1F7B5"), lty = 1 : 4, cex = 0.5) 
+
+
+
+```
+
+
+# Comparación de la función de Redes y desolve
+
+
+Quitar NA's de los resultados de las funciones (NA=0)
+
+```{r}
+
+# Tablas del resultado de la funcion de redes
+
+# Quitar las NA's de las tablas (NA=0)
+
+a[is.na(a)] <- 0
+
+
+b[is.na(b)] <- 0
+
+```
+
+## Modelo SIR
+
+### Función de redes
+
+```{r}
+
+# Funcion de redes 
+
+matplot(a[ -1, 4], a[ -1, 1:3], type = "l", xlab = "Time", ylab = "Population", main = "SIR con función de redes", lwd = 3, col = c("#9EA1D4", "#A8D1D1", "#F1F7B5"))
+legend("topright", c("Suceptible", "Infectado / Infected","Recuperado / Recovered"), col = c("#9EA1D4", "#A8D1D1", "#F1F7B5"), lty = 1:4, cex = 0.5)
+
+
+```
+
+
+### Desolve
+
+```{r}
+
+# Desolve
+
+matplot(out1[ , 1], out1[ , 2:4], type = "l", xlab = "Time", ylab = "Population", main = "SIR con desolve", lwd = 3, col = c("#9EA1D4", "#A8D1D1", "#F1F7B5"))
+legend("topright", c("Suceptible", "Infectado / Infected","Recuperado / Recovered"), col = c("#9EA1D4", "#A8D1D1", "#F1F7B5"), lty = 1:4, cex = 0.5)
+
+```
+
+## Modelo SEIR
+
+
+```{r}
+
+# Funcion de redes
+
+matplot (b[ -1, 5], b[ -1, 1:4], type = "l", xlab = "Time", ylab = "Population", main = "SEIR con función de redes", lwd = 3, col = c("#9EA1D4", "#FD8A8A", "#A8D1D1", "#F1F7B5")) 
+legend ("topright", c ("Susceptible", "Expuesto / Exposed", "Infectado / Infected", "Recuperado / Recovered"), col = c("#9EA1D4", "#FD8A8A", "#A8D1D1", "#F1F7B5"), lty = 1 : 4, cex = 0.5) 
+
+```
+
+
+```{r}
+
+# Desolve 
+
+matplot (out2[ , 1], out2[ , 2 : 5], type = "l", xlab = "Time", ylab = "Population", main = "SEIR con desolve", lwd = 3, col = c("#9EA1D4", "#FD8A8A", "#A8D1D1", "#F1F7B5")) 
+legend ("topright", c ("Susceptible", "Expuesto / Exposed", "Infectado / Infected", "Recuperado / Recovered"), col = c("#9EA1D4", "#FD8A8A", "#A8D1D1", "#F1F7B5"), lty = 1 : 4, cex = 0.5) 
+
+```
+
+
+# Conclusiones y perspectivas
+
+La función de redes, mostró resultados óptimos comparado con la función **ode** de desolve, ambos métodos llegaron a un punto de equilibrio. 
+
+Comparaciones entre los métodos:
+
+**En el modelo SIR:**
+El pico de personas infectadas en la función de redes fue mayor que en desolve, los susceptibles se redujeron en menos tiempo en desolve y permanecieron más personas susceptibles. No se observa una grande entre los recuperados.
+
+**En el modelo SEIR**:
+En la función de redes el pico de infectados y expuestos fue menor que en desolve y en un mayor tiempo. La cantidad de personas recuperadas es mayor en desolve.
+
+La mayor diferencia entre ambos métodos se observó en el tiempo. Sin embargo, en desolve el tiempo = 10; en este caso, es relativo, ya que no se especifica que sean 10 días y pueden ser 10 semanas, etc. En cambio, en la función de redes sí se basa en la cantidad de días solamente. Como perspectivas, se puede buscar implementar la función a modelos con demografía y a otros modelos con otros estados, como crónico, en tratamiento, etc. 
+
+# Referencias
+
+- Joaquín Amat Rodrigo j.amatrodrigo@gmail.com. (s. f.). Crear gift con R. https://www.cienciadedatos.net/documentos/57_gif_con_r.html
+
+- Hou, J. (2017, 28 noviembre). Network Visualization by igraph. https://rstudio-pubs-static.s3.amazonaws.com/337696_c6b008e0766e46bebf1401bea67f7b10.html
+
+- Insert GIF in pdf using rmarkdown. (2018, 11 septiembre). Stack Overflow. https://stackoverflow.com/questions/52275963/insert-gif-in-pdf-using-rmarkdown
